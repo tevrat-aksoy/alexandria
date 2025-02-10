@@ -1,4 +1,5 @@
 use alexandria_encoding::rlp::{RLPError, RLPItem, RLPTrait, RLPType};
+use alexandria_math::{pow};
 
 #[test]
 #[available_gas(99999999)]
@@ -3277,30 +3278,68 @@ fn test_rlp_encode_string_u256_empty() {
 #[available_gas(20000000)]
 fn test_rlp_encode_string_u256_short() {
     let mut input: Array<u256> = Default::default();
-    input.append(0x123);
+    input.append('aaaaaaaaaaaaaaa');
     let res = RLPTrait::encode_string_u256(input.span()).unwrap();
 
     assert!(res.len() == 2, "wrong len");
     assert!(*res[0] == 0x80 + 32, "wrong encoded value1");
-    assert!(*res[1] == 0x123, "wrong encoded value2");
+    assert!(*res[1] == 'aaaaaaaaaaaaaaa', "wrong encoded value2");
 }
 
 #[test]
 #[available_gas(20000000)]
 fn test_rlp_encode_string_u256_long() {
     let mut input: Array<u256> = Default::default();
-    input.append(0x111111111111111);
-    input.append(0x222222222222222);
-    input.append(0x333333333333333);
+    input.append('aaaaaaaaaaaaaaa');
+    input.append('bbbbbbbbbbbbbbb');
+    input.append('ccccc12');
+
+    let res = RLPTrait::encode_string_u256(input.span()).unwrap();
+
+    assert!(res.len() == 4, "wrong len");
+    //32 bytes for each element => 64 bytes total and its lenght is 1
+    assert!(*res[0] == 0xb7 + 1, "wrong encoded value1");
+    assert!(*res[1] == 0x40, "wrong encoded value2");
+    assert!(*res[2] == 'aaaaaaaaaaaaaaabbbbbbbbbbbbbbb12', "wrong encoded value3");
+    assert!(*res[3] == 'ccccc', "wrong encoded value4");
+}
+
+#[test]
+#[available_gas(20000000)]
+fn test_rlp_encode_string_u256_long2() {
+    let mut input: Array<u256> = Default::default();
+    input.append('aaaaaaaaaaaaaaa');
+    input.append('bbbbbbbbbbbbbbb');
+    input.append('ccccccccccccccc12');
+    input.append('ddddddddddddddddd');
+
+    let res = RLPTrait::encode_string_u256(input.span()).unwrap();
+
+    assert!(res.len() == 4, "wrong len");
+    //32 bytes for each element => 64 bytes total and its lenght is 1
+    assert!(*res[0] == 0xb7 + 1, "wrong encoded value1");
+    //64 in hex => 0x40
+    assert!(*res[1] == 0x40, "wrong encoded value2");
+    assert!(*res[2] == 'aaaaaaaaaaaaaaabbbbbbbbbbbbbbb12', "wrong encoded value3");
+    assert!(*res[3] == 'cccccccccccccccddddddddddddddddd', "wrong encoded value4");
+}
+
+#[test]
+#[available_gas(20000000)]
+fn test_rlp_encode_string_u256_long3() {
+    let mut input: Array<u256> = Default::default();
+    input.append('aaaaaaaaaaaaaaa');
+    input.append('bbbbbbbbbbbbbbb');
+    input.append('ccccccccccccccc12');
+    input.append('ddddddddddddddd');
+    input.append('eeeeeee');
 
     let res = RLPTrait::encode_string_u256(input.span()).unwrap();
 
     assert!(res.len() == 5, "wrong len");
-    //32 bytes for each element => 96 bytes total and its lenght is 1
     assert!(*res[0] == 0xb7 + 1, "wrong encoded value1");
-    //96 in hex => 0x60
     assert!(*res[1] == 0x60, "wrong encoded value2");
-    assert!(*res[2] == 0x111111111111111, "wrong encoded value3");
-    assert!(*res[3] == 0x222222222222222, "wrong encoded value4");
-    assert!(*res[4] == 0x333333333333333, "wrong encoded value5");
+    assert!(*res[2] == 'aaaaaaaaaaaaaaabbbbbbbbbbbbbbb12', "wrong encoded value3");
+    assert!(*res[3] == 'cccccccccccccccdddddddddddddddee', "wrong encoded value4");
+    assert!(*res[4] == 'eeeee', "wrong encoded value5");
 }

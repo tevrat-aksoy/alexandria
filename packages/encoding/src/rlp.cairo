@@ -1,4 +1,6 @@
 use alexandria_data_structures::array_ext::ArrayTraitExt;
+use alexandria_encoding::utils::{combine_bytes, count_bytes, merge_u256_values, split_value};
+use alexandria_math::{pow};
 use alexandria_numeric::integers::UIntBytes;
 
 // Possible RLP errors
@@ -152,7 +154,6 @@ pub impl RLPImpl of RLPTrait {
         }
     }
 
-
     /// RLP encodes an Array of u256 values.
     /// # Arguments
     /// * `input` - Span of u256 representing a RLP String to encode
@@ -170,9 +171,12 @@ pub impl RLPImpl of RLPTrait {
             encoding.extend_from_span(input);
             return Result::Ok(encoding.span());
         }
+        let mut encoding: Array<u256> = Default::default();
 
-        // Each u256 is 32 bytes
-        let total_bytes = len * BYTES_PER_U256; 
+        let merged = merge_u256_values(input);
+        let merged_len = merged.len();
+
+        let total_bytes = merged_len * BYTES_PER_U256;
 
         if total_bytes.into() > MAX_LENGTH {
             return Result::Err(RLPError::PayloadTooLong);
@@ -186,7 +190,7 @@ pub impl RLPImpl of RLPTrait {
         encoding.append(prefix);
         let len_as_u256: u256 = UIntBytes::<u32>::from_bytes(len_as_bytes).unwrap().into();
         encoding.append(len_as_u256);
-        encoding.extend_from_span(input);
+        encoding.extend_from_span(merged);
         return Result::Ok(encoding.span());
     }
 

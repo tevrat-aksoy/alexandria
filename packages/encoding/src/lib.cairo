@@ -5,3 +5,4 @@ pub mod sol_abi;
 
 #[cfg(test)]
 mod tests;
+pub mod utils;
