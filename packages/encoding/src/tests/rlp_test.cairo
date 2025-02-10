@@ -3261,3 +3261,46 @@ fn test_rlp_encode_long_list() {
 
     assert!(res == expected.span(), "Wrong value");
 }
+
+
+#[test]
+#[available_gas(20000000)]
+fn test_rlp_encode_string_u256_empty() {
+    let mut input: Array<u256> = Default::default();
+    let res = RLPTrait::encode_string_u256(input.span()).unwrap();
+
+    assert!(res.len() == 1, "wrong len");
+    assert!(*res[0] == 0x80, "wrong encoded value");
+}
+
+#[test]
+#[available_gas(20000000)]
+fn test_rlp_encode_string_u256_short() {
+    let mut input: Array<u256> = Default::default();
+    input.append(0x123);
+    let res = RLPTrait::encode_string_u256(input.span()).unwrap();
+
+    assert!(res.len() == 2, "wrong len");
+    assert!(*res[0] == 0x80 + 32, "wrong encoded value1");
+    assert!(*res[1] == 0x123, "wrong encoded value2");
+}
+
+#[test]
+#[available_gas(20000000)]
+fn test_rlp_encode_string_u256_long() {
+    let mut input: Array<u256> = Default::default();
+    input.append(0x111111111111111);
+    input.append(0x222222222222222);
+    input.append(0x333333333333333);
+
+    let res = RLPTrait::encode_string_u256(input.span()).unwrap();
+
+    assert!(res.len() == 5, "wrong len");
+    //32 bytes for each element => 96 bytes total and its lenght is 1
+    assert!(*res[0] == 0xb7 + 1, "wrong encoded value1");
+    //96 in hex => 0x60
+    assert!(*res[1] == 0x60, "wrong encoded value2");
+    assert!(*res[2] == 0x111111111111111, "wrong encoded value3");
+    assert!(*res[3] == 0x222222222222222, "wrong encoded value4");
+    assert!(*res[4] == 0x333333333333333, "wrong encoded value5");
+}

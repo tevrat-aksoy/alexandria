@@ -22,6 +22,9 @@ pub enum RLPItem {
     List: Span<RLPItem>,
 }
 
+const MAX_LENGTH: u64 = 18446744073709551615; // 2^64
+
+
 #[generate_trait]
 pub impl RLPImpl of RLPTrait {
     /// Returns RLPType from the leading byte with
@@ -147,6 +150,45 @@ pub impl RLPImpl of RLPTrait {
             return Result::Ok(encoding.span());
         }
     }
+
+
+    /// RLP encodes an Array of u256 values.
+    /// # Arguments
+    /// * `input` - Span of u256 representing a RLP String to encode
+    /// # Returns
+    /// * `Span<u256>` - RLP encoded items as a span of bytes
+    fn encode_string_u256(input: Span<u256>) -> Result<Span<u256>, RLPError> {
+        let len = input.len();
+        if len == 0 {
+            // Empty input returns a single byte 0x80
+            return Result::Ok(array![0x80].span());
+        } else if len == 1 {
+            // Single u256 is 32 bytes smaller than 56
+            let mut encoding: Array<u256> = Default::default();
+            encoding.append(0x80 + 32);
+            encoding.extend_from_span(input);
+            return Result::Ok(encoding.span());
+        }
+
+        // Each u256 is 32 bytes
+        let total_bytes = len * 32; 
+
+        if total_bytes.into() > MAX_LENGTH {
+            return Result::Err(RLPError::PayloadTooLong);
+        }
+
+        let len_as_bytes: Span<u8> = (total_bytes).to_bytes();
+        let len_bytes_count = len_as_bytes.len();
+        let prefix: u256 = 0xb7 + len_bytes_count.into();
+
+        let mut encoding: Array<u256> = Default::default();
+        encoding.append(prefix);
+        let len_as_u256: u256 = UIntBytes::<u32>::from_bytes(len_as_bytes).unwrap().into();
+        encoding.append(len_as_u256);
+        encoding.extend_from_span(input);
+        return Result::Ok(encoding.span());
+    }
+
 
     /// Recursively decodes a rlp encoded byte array
     /// as described in https://ethereum.org/en/developers/docs/data-structures-and-encoding/rlp/
