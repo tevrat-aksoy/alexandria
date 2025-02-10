@@ -23,6 +23,7 @@ pub enum RLPItem {
 }
 
 const MAX_LENGTH: u64 = 18446744073709551615; // 2^64
+const BYTES_PER_U256: u32 = 32; // 2^64
 
 
 #[generate_trait]
@@ -165,13 +166,13 @@ pub impl RLPImpl of RLPTrait {
         } else if len == 1 {
             // Single u256 is 32 bytes smaller than 56
             let mut encoding: Array<u256> = Default::default();
-            encoding.append(0x80 + 32);
+            encoding.append(0x80 + BYTES_PER_U256.into());
             encoding.extend_from_span(input);
             return Result::Ok(encoding.span());
         }
 
         // Each u256 is 32 bytes
-        let total_bytes = len * 32; 
+        let total_bytes = len * BYTES_PER_U256; 
 
         if total_bytes.into() > MAX_LENGTH {
             return Result::Err(RLPError::PayloadTooLong);
