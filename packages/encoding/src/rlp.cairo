@@ -1,5 +1,7 @@
 use alexandria_data_structures::array_ext::ArrayTraitExt;
-use alexandria_encoding::utils::{combine_bytes, count_bytes, merge_u256_values, split_value};
+use alexandria_encoding::utils::{
+    calculate_array_byte_size, combine_bytes, count_bytes, merge_u256_arrays,
+};
 use alexandria_math::{pow};
 use alexandria_numeric::integers::UIntBytes;
 
@@ -165,33 +167,42 @@ pub impl RLPImpl of RLPTrait {
             // Empty input returns a single byte 0x80
             return Result::Ok(array![0x80].span());
         } else if len == 1 {
+            if *input[0] < 0x80 {
+                // If the single u256 is smalller than 0x80, return it directly
+                return Result::Ok(input);
+            }
             // Single u256 is 32 bytes smaller than 56
             let mut encoding: Array<u256> = Default::default();
-            encoding.append(0x80 + BYTES_PER_U256.into());
-            encoding.extend_from_span(input);
+            let byte_size = count_bytes(*input[0]);
+            let prefix = 0x80 + byte_size.into();
+            let merged = combine_bytes(prefix, *input[0], byte_size);
+            encoding.append(merged);
             return Result::Ok(encoding.span());
         }
-        let mut encoding: Array<u256> = Default::default();
 
-        let merged = merge_u256_values(input);
-        let merged_len = merged.len();
+        let byte_size = calculate_array_byte_size(input);
 
-        let total_bytes = merged_len * BYTES_PER_U256;
-
-        if total_bytes.into() > MAX_LENGTH {
+        if byte_size.into() > MAX_LENGTH {
             return Result::Err(RLPError::PayloadTooLong);
         }
 
-        let len_as_bytes: Span<u8> = (total_bytes).to_bytes();
-        let len_bytes_count = len_as_bytes.len();
-        let prefix: u256 = 0xb7 + len_bytes_count.into();
+        let mut prefix_arr: Array<u256> = Default::default();
 
-        let mut encoding: Array<u256> = Default::default();
-        encoding.append(prefix);
-        let len_as_u256: u256 = UIntBytes::<u32>::from_bytes(len_as_bytes).unwrap().into();
-        encoding.append(len_as_u256);
-        encoding.extend_from_span(merged);
-        return Result::Ok(encoding.span());
+        if byte_size < 56 {
+            // Simple prefix for small payloads
+            prefix_arr.append(0x80 + byte_size.into());
+        } else {
+            // Prefix for large payloads
+            let len_as_bytes: Span<u8> = (byte_size).to_bytes();
+            let len_bytes_count = len_as_bytes.len();
+            let prefix: u256 = 0xb7 + len_bytes_count.into();
+            let len_as_u256: u256 = UIntBytes::<u32>::from_bytes(len_as_bytes).unwrap().into();
+            prefix_arr.append(prefix);
+            prefix_arr.append(len_as_u256);
+        }
+        // Merge the prefix array with the input array
+        let merged = merge_u256_arrays(prefix_arr.span(), input);
+        return Result::Ok(merged);
     }
 
 

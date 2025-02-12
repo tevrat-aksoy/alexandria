@@ -3274,34 +3274,75 @@ fn test_rlp_encode_string_u256_empty() {
     assert!(*res[0] == 0x80, "wrong encoded value");
 }
 
+
 #[test]
 #[available_gas(20000000)]
 fn test_rlp_encode_string_u256_short() {
     let mut input: Array<u256> = Default::default();
-    input.append('aaaaaaaaaaaaaaa');
+    input.append(0x50);
     let res = RLPTrait::encode_string_u256(input.span()).unwrap();
 
-    assert!(res.len() == 2, "wrong len");
-    assert!(*res[0] == 0x80 + 32, "wrong encoded value1");
-    assert!(*res[1] == 'aaaaaaaaaaaaaaa', "wrong encoded value2");
+    assert!(res.len() == 1, "wrong len");
+    assert!(*res[0] == 0x50, "wrong encoded value");
+
+    let mut input2: Array<u256> = Default::default();
+    input2.append(0);
+    let res2 = RLPTrait::encode_string_u256(input2.span()).unwrap();
+
+    assert!(res2.len() == 1, "wrong len");
+    assert!(*res2[0] == 0, "wrong encoded value");
+}
+
+#[test]
+#[available_gas(20000000)]
+fn test_rlp_encode_string_u256_short_with_one_elements() {
+    let mut input: Array<u256> = Default::default();
+    input.append('abcd');
+    let res = RLPTrait::encode_string_u256(input.span()).unwrap();
+    let prefix: u256 = 0x84 * pow(256, 4);
+    let expected: u256 = prefix + 'abcd';
+
+    assert!(res.len() == 1, "wrong len");
+    assert!(*res[0] == expected, "wrong encoded value");
+}
+
+
+#[test]
+#[available_gas(20000000)]
+fn test_rlp_encode_string_u256_short_with_multi_elements() {
+    let mut input: Array<u256> = Default::default();
+    input.append('ab');
+    input.append('cd');
+    input.append('ef12');
+    input.append('0');
+
+    let res = RLPTrait::encode_string_u256(input.span()).unwrap();
+    let prefix: u256 = 0x89 * pow(256, 9);
+    let expected: u256 = prefix + 'abcdef120';
+
+    assert!(res.len() == 1, "wrong len");
+    assert!(*res[0] == expected, "wrong encoded value");
 }
 
 #[test]
 #[available_gas(20000000)]
 fn test_rlp_encode_string_u256_long() {
     let mut input: Array<u256> = Default::default();
+
     input.append('aaaaaaaaaaaaaaa');
     input.append('bbbbbbbbbbbbbbb');
-    input.append('ccccc12');
+    input.append('ccccccccccccccc12');
+    input.append('ddddddddddddddd');
 
     let res = RLPTrait::encode_string_u256(input.span()).unwrap();
 
-    assert!(res.len() == 4, "wrong len");
-    //32 bytes for each element => 64 bytes total and its lenght is 1
-    assert!(*res[0] == 0xb7 + 1, "wrong encoded value1");
-    assert!(*res[1] == 0x40, "wrong encoded value2");
-    assert!(*res[2] == 'aaaaaaaaaaaaaaabbbbbbbbbbbbbbb12', "wrong encoded value3");
-    assert!(*res[3] == 'ccccc', "wrong encoded value4");
+    let prefix: u256 = (0xb7 + 1) * pow(256, 31);
+    let len_count: u256 = 62 * pow(256, 30);
+    let expected_res1: u256 = prefix + len_count + 'aaaaaaaaaaaaaaabbbbbbbbbbbbbbb';
+
+    assert!(res.len() == 2, "wrong len");
+    assert!(*res[0] == expected_res1, "wrong encoded value1");
+    assert!(*res[1] == 'ccccccccccccccc12ddddddddddddddd', "wrong encoded value2");
 }
 
 #[test]
@@ -3311,35 +3352,17 @@ fn test_rlp_encode_string_u256_long2() {
     input.append('aaaaaaaaaaaaaaa');
     input.append('bbbbbbbbbbbbbbb');
     input.append('ccccccccccccccc12');
-    input.append('ddddddddddddddddd');
-
-    let res = RLPTrait::encode_string_u256(input.span()).unwrap();
-
-    assert!(res.len() == 4, "wrong len");
-    //32 bytes for each element => 64 bytes total and its lenght is 1
-    assert!(*res[0] == 0xb7 + 1, "wrong encoded value1");
-    //64 in hex => 0x40
-    assert!(*res[1] == 0x40, "wrong encoded value2");
-    assert!(*res[2] == 'aaaaaaaaaaaaaaabbbbbbbbbbbbbbb12', "wrong encoded value3");
-    assert!(*res[3] == 'cccccccccccccccddddddddddddddddd', "wrong encoded value4");
-}
-
-#[test]
-#[available_gas(20000000)]
-fn test_rlp_encode_string_u256_long3() {
-    let mut input: Array<u256> = Default::default();
-    input.append('aaaaaaaaaaaaaaa');
-    input.append('bbbbbbbbbbbbbbb');
-    input.append('ccccccccccccccc12');
     input.append('ddddddddddddddd');
     input.append('eeeeeee');
 
     let res = RLPTrait::encode_string_u256(input.span()).unwrap();
 
-    assert!(res.len() == 5, "wrong len");
-    assert!(*res[0] == 0xb7 + 1, "wrong encoded value1");
-    assert!(*res[1] == 0x60, "wrong encoded value2");
-    assert!(*res[2] == 'aaaaaaaaaaaaaaabbbbbbbbbbbbbbb12', "wrong encoded value3");
-    assert!(*res[3] == 'cccccccccccccccdddddddddddddddee', "wrong encoded value4");
-    assert!(*res[4] == 'eeeee', "wrong encoded value5");
+    let prefix: u256 = (0xb7 + 1) * pow(256, 31);
+    let len_count: u256 = 69 * pow(256, 30);
+    let expected_res1: u256 = prefix + len_count + 'aaaaaaaaaaaaaaabbbbbbbbbbbbbbb';
+
+    assert!(res.len() == 3, "wrong len");
+    assert!(*res[0] == expected_res1, "wrong encoded value1");
+    assert!(*res[1] == 'ccccccccccccccc12ddddddddddddddd', "wrong encoded value2");
+    assert!(*res[2] == 'eeeeeee', "wrong encoded value2");
 }
